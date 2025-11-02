@@ -1,0 +1,119 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  code-quality-backend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install flake8 black isort pylint radon
+        pip install -r requirements.txt
+
+    - name: Run flake8
+      run: |
+        cd backend
+        flake8 app --max-line-length=127 --statistics --output-file=flake8-report.txt || true
+
+    - name: Check code formatting
+      run: |
+        cd backend
+        black --check app --diff || true
+
+    - name: Check import sorting
+      run: |
+        cd backend
+        isort app --check-only --diff || true
+
+    - name: Run pylint
+      run: |
+        cd backend
+        pylint app --output-format=text --exit-zero > pylint-report.txt
+
+    - name: Calculate code complexity
+      run: |
+        cd backend
+        radon cc app -a -s || true
+        radon mi app -s || true
+
+    - name: Upload reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: backend-quality-reports
+        path: |
+          backend/flake8-report.txt
+          backend/pylint-report.txt
+
+  code-quality-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Run ESLint
+      run: |
+        cd frontend
+        npm run lint -- --output-file eslint-report.json --format json || true
+
+    - name: Check code complexity
+      run: |
+        npm install -g complexity-report
+        cd frontend/src
+        cr --format json *.jsx components/*.jsx > ../complexity-report.json || true
+
+    - name: Bundle size analysis
+      run: |
+        cd frontend
+        npm run build
+        npx source-map-explorer 'dist/**/*.js' --json > bundle-analysis.json || true
+
+    - name: Upload reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-quality-reports
+        path: |
+          frontend/eslint-report.json
+          frontend/complexity-report.json
+          frontend/bundle-analysis.json
+
+  comment-pr:
+    runs-on: ubuntu-latest
+    needs: [code-quality-backend, code-quality-frontend]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Comment on PR
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ Code quality checks completed! Review the artifacts for detailed reports.'
+          })
+
