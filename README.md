@@ -6,6 +6,9 @@ A full-stack application that generates personalized cover letters using AI (Cla
 
 Paste your resume and job posting - AI extracts company name, job title, and your details automatically to generate a professional cover letter.
 
+<img width="1161" height="679" alt="Screenshot 2025-11-03 at 4 37 34 PM" src="https://github.com/user-attachments/assets/417b4c29-116e-425b-aaba-ce976fd817a5" />
+
+
 ## 🌟 Features
 
 ### Core Features
